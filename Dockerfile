@@ -1,28 +1,23 @@
-# 1ª etapa: Build com Gradle e JDK 11
+# 1) Fase de build: compila o projeto Axelor
 FROM gradle:8.11-jdk11 AS build
 WORKDIR /app
 
-# Copia todos os arquivos para dentro do container
 COPY . /app
 
-# Garante que o gradlew tem permissão de execução
+# Dá permissão ao gradlew (se necessário)
 RUN chmod +x gradlew
 
-# Executa o build ignorando testes e checks (pode demorar um pouco)
+# Build, ignorando testes (ajuste se precisar)
 RUN ./gradlew clean build -x check -x test --stacktrace
 
-# 2ª etapa: Imagem final com apenas JRE 11
-FROM openjdk:11-jre-slim
-WORKDIR /app
+# 2) Fase de runtime: Tomcat
+FROM tomcat:9.0-jdk11
+WORKDIR /usr/local/tomcat/webapps
 
-# COPIE o artefato gerado.
-# ATENÇÃO: verifique qual é o arquivo gerado. No exemplo, estamos supondo que o módulo axelor-tomcat gera um arquivo executável,
-# por exemplo, um JAR executável dentro de "axelor-tomcat/build/libs".
-# Se for WAR e não for executável, talvez seja necessário rodar em um servidor Tomcat.
-COPY --from=build /app/axelor-tomcat/build/libs/axelor-tomcat*.jar /app/app.jar
+# Copia o WAR gerado na fase de build para a pasta webapps do Tomcat
+# Ajuste o nome do WAR conforme o que for gerado em axelor-tomcat/build/libs
+COPY --from=build /app/axelor-tomcat/build/libs/axelor-tomcat-*.war ./ROOT.war
 
-# Expõe a porta (verifique qual porta a aplicação usa – geralmente 8080)
 EXPOSE 8080
 
-# Comando para iniciar a aplicação
-CMD ["java", "-jar", "/app/app.jar"]
+CMD ["catalina.sh", "run"]
